@@ -1,0 +1,25 @@
+#! /bin/bash
+
+# script to crop disfluent part from wav file
+
+disf_trans="/media/CARE/switchboard/swb_ms98_transcriptions/disfluent_uttr"
+audio_location="/media/CARE/switchboard/wav_files/"
+trimmed_audio_storage="/media/CARE/switchboard/trimmed_files/"
+
+while read line
+do
+	
+	file_id=$(paste -d' ' <(echo "SW0") <(echo $line | cut -c3-6 | tr "a-z" "A-Z") | sed s/\ //g )
+	file_name=$file_id.wav
+	echo $file_name
+
+	start_time=$(echo $line | cut -d' ' -f2)
+	start_time_bef=$(echo "$start_time - 1"|bc)	
+	end_time=$(echo $line | cut -d' ' -f3)
+	end_time_ext=$(echo "$end_time + 1"|bc) # extending as some features do not get extracted at the end of file
+	time_duration=$(echo "$end_time_ext - $start_time_bef"|bc)
+	echo $time_duration
+
+	sox $audio_location/$file_name $trimmed_audio_storage/$file_id"_"$start_time_bef"_"$end_time_ext".wav" trim $start_time_bef $time_duration
+
+done < "/media/CARE/switchboard/swb_ms98_transcriptions/disfluent_uttr" 

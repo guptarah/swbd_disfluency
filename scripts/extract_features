@@ -1,0 +1,55 @@
+#! /bin/bash
+
+# script to extract features from praat
+
+input_dir=$1 # dir containing the wav files
+output_dir=$2 # dir where to store feature
+# GIVE full path below
+transcript_dir=$3 # dir where transcripts are located
+
+# example: ./extract_features /media/CARE/switchboard/trimmed_files/ /home/rahul/research/swbd_disfluency/features/ /media/CARE/switchboard/swb_ms98_transcriptions/
+
+cd ../../tools
+
+for files in $input_dir/*.wav
+do
+
+	cd ../../tools
+
+	echo $(basename $files)
+	save_dir=$output_dir/$(basename $files)
+	mkdir $save_dir
+
+	# extract praat features
+	./praat extract_voice_report.praat $files $save_dir # voice report
+	./praat extract_intensity.praat $files $save_dir # voice report
+	./praat extract_pitch.praat $files $save_dir # voice report
+
+	# extract lables
+	file_id=$(basename $files | cut -c1-7) 
+	prime_dir=$(echo $file_id | cut -c4-5)
+	sec_dir=$(echo $file_id | cut -c4-7)	
+	trans_loc=$(ls $transcript_dir/$prime_dir/$sec_dir/*$sec_dir"A"*word*)
+	
+	start_time=$(basename $files | cut -d'_' -f2 )
+	end_time=$(basename $files | cut -d'_' -f3 | cut -d'.' -f1-2)
+
+	echo $trans_loc $start_time $end_time
+
+	cd ../swbd_disfluency/scripts/
+
+	cut -d' ' -f2-3 $trans_loc > temp_times
+	python compute_start_end_line_loc.py temp_times $start_time $end_time # this will create temp_start_end with start and end line numbers to locate in word transcript file	
+		
+	start_line=$(head -n1 temp_start_end)
+	end_line=$(tail -n1 temp_start_end)
+
+	echo $start_line $end_line
+	sed -n $start_line,"$end_line"p $trans_loc | grep '\-$' | cut -d' ' -f2,3 > time_w_disf 
+
+	python create_lables.py time_w_disf $start_time $end_time 
+
+	cp temp_lables $save_dir/lables
+	rm temp_lables
+
+done
